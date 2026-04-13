@@ -106,7 +106,7 @@ public class Engine {
         int aiScore = 0;
         int opponentScore = 0;
 
-        boolean isAiBlack = (aiPlayer == Board.BLACK_MAN || aiPlayer == Board.BLACK_KING);
+        boolean isAiBlack = (aiPlayer == Board.BLACK || aiPlayer == Board.BlackKing);
 
         // Loop through the entire 128-square 0x88 board
         for (int i = 0; i < 128; i++) {

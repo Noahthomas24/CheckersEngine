@@ -2,12 +2,12 @@ package ek.board;
 
 public class Move {
     
-    public int fromIndex;      // The 0x88 index where the piece started
-    public int toIndex;        // The 0x88 index where the piece landed
+    public int fromIndex;      // Position where the piece started
+    public int toIndex;        // Position of where the piece landed
     
     // Capture Data
-    public int captureIndex;   // The index of the square where a piece was captured (-1 if no capture)
-    public int capturedPiece;  // The integer of the piece captured (e.g., Board.WHITE). (0 if none)
+    public int captureIndex;   // Position of where a piece was captured (-1 if no capture)
+    public int capturedPiece;  // The integer of the piece captured (Board.WHITE = 1, EMPTY=0, etc)
     
     // Promotion Data
     public boolean isPromotion; // True if this move turned a regular piece into a King
@@ -20,7 +20,7 @@ public class Move {
         this.isPromotion = isPromotion;
     }
 
-    // This makes debugging much easier by printing out the move details clearly!
+    // Prints out the entire move with details
     @Override
     public String toString() {
         String details = "Move from " + fromIndex + " to " + toIndex;
