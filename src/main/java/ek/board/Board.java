@@ -129,6 +129,7 @@ public class Board {
                 continue; // Not the active player's piece
             }
 
+            findJumpMoves(fromIndex);
             findSlidingMove(fromIndex);
         }
     }
