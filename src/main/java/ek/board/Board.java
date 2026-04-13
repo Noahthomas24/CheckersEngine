@@ -1,12 +1,12 @@
 package ek.board;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Board {
-
-
 
     //0x88 Board with 128 slots
     private final int[] board = new int[128];
-
 
     //Pieces are represented as Integers
     // All Black pieces are Odd and White pieces are Even
@@ -20,11 +20,9 @@ public class Board {
 
     public static final int OFF_BOARD = -1;
 
-
     public boolean isOffBoard(int fromIndex) {
         return (fromIndex & 0x88) != 0;
     }
-
 
     public int getPiece(int square) {
         if (isOffBoard(square)) {
@@ -33,11 +31,10 @@ public class Board {
         return board[square];
     }
 
-
-    public void findSlidingMove(int fromIndex) {
+    public List<Move> findSlidingMove(int fromIndex) {
+        List<Move> moves = new ArrayList<>();
         int piece = board[fromIndex];
         int[] directions;
-
 
         //Define move direction based off color. White moves positive, black moves negative.
         if (piece == WHITEKing || piece == BLACKKing) {
@@ -51,20 +48,19 @@ public class Board {
         for (int offset : directions) {
             int target = fromIndex + offset;
 
-            // The 0x88 Magic: Instant boundary check
+            // Instant boundary check
             if (!isOffBoard(target)) {
                 if (board[target] == EMPTY) {
-                    System.out.println("Valid move from " + fromIndex + " to " + target);
+                    // Create the Move object instead of printing
+                    moves.add(new Move(fromIndex, target, -1, EMPTY, false));
                 }
             }
         }
-
-
-
+        return moves;
     }
 
-
-    public void findJumpMoves(int fromIndex) {
+    public List<Move> findJumpMoves(int fromIndex) {
+        List<Move> jumps = new ArrayList<>();
         int piece = board[fromIndex];
         int[] directions;
 
@@ -76,45 +72,44 @@ public class Board {
             directions = new int[] {-15, -17};
         }
 
-        // Determine if the current piece is Black or White (using your Odd/Even logic)
+        // Determine if the current piece is Black or White
         boolean isCurrentPieceBlack = (piece % 2 != 0);
 
         for (int offset : directions) {
             int captureSquare = fromIndex + offset;
             int landingSquare = fromIndex + (offset * 2);
 
-            // 1. Is the landing square on the board?
+            // validate if landing position is on the board
             if (!isOffBoard(landingSquare)) {
 
-                // 2. Is the landing square empty?
+                // validate if target position is empty
                 if (board[landingSquare] == EMPTY) {
 
-                    // 3. Is the intermediate square an enemy piece?
+                    // validate if intermediate square is enemy
                     int capturedPiece = board[captureSquare];
 
                     if (capturedPiece != EMPTY) {
                         boolean isCapturedPieceBlack = (capturedPiece % 2 != 0);
 
                         if (isCurrentPieceBlack != isCapturedPieceBlack) {
-                            System.out.println("Valid JUMP from " + fromIndex + " to " + landingSquare + " capturing " + captureSquare);
-
+                            // Create the Jump Move object instead of printing
+                            jumps.add(new Move(fromIndex, landingSquare, captureSquare, capturedPiece, false));
                         }
                     }
                 }
             }
         }
+        return jumps;
     }
 
-
-
-    public void generateAllMoves(int activePlayerColor) {
-
+    public List<Move> generateLegalMoves(int activePlayerColor) {
+        List<Move> slidingMoves = new ArrayList<>();
+        List<Move> jumpMoves = new ArrayList<>();
 
         // Iterate through all 128 indices
-
         for (int fromIndex = 0; fromIndex < 128; fromIndex++) {
 
-            // 1. 0x88 Check: Skip invalid squares
+            // Skip invalid squares in 0x88 format
             if ((fromIndex & 0x88) != 0) {
                 continue;
             }
@@ -129,16 +124,23 @@ public class Board {
                 continue; // Not the active player's piece
             }
 
-            findJumpMoves(fromIndex);
-            findSlidingMove(fromIndex);
+            // Gather the moves into their respective lists
+            jumpMoves.addAll(findJumpMoves(fromIndex));
+            slidingMoves.addAll(findSlidingMove(fromIndex));
         }
-    }
 
+        // Mandatory Capture Rule: If any jumps exist, ignore regular moves.
+        if (!jumpMoves.isEmpty()) {
+            return jumpMoves;
+        }
+
+        return slidingMoves;
+    }
 
     public void makeMove(Move move) {
         int movingPiece = board[move.fromIndex];
 
-        // 1. Check if this move is a Jump (Distance is 30 or 34 in 0x88)
+        // Check if  move is a jumping move (Distance is 30 or 34 in 0x88)
         int distance = Math.abs(move.fromIndex - move.toIndex);
         if (distance == 30 || distance == 34) {
             // Calculate the square we jumped over
@@ -149,11 +151,11 @@ public class Board {
             board[move.captureIndex] = EMPTY;
         }
 
-        // 2. Move the piece
+        // Move the piece
         board[move.toIndex] = movingPiece;
         board[move.fromIndex] = EMPTY;
 
-        // 3. Handle King Promotions
+        // Handle King Promotions
         // White moves positive (towards row 7). Black moves negative (towards row 0).
         // >> 4 divides the index by 16 to get the row number.
         int targetRow = move.toIndex >> 4;
@@ -170,7 +172,7 @@ public class Board {
     public void unmakeMove(Move move) {
         int pieceOnTarget = board[move.toIndex];
 
-        // 1. Undo King Promotion if it happened on this turn
+        // Undo King Promotion if it happened on this turn
         if (move.isPromotion) {
             // Demote it back to a standard piece
             pieceOnTarget = (pieceOnTarget == WHITEKing) ? WHITE : BLACK;
@@ -185,6 +187,4 @@ public class Board {
             board[move.captureIndex] = move.capturedPiece;
         }
     }
-
-
 }
