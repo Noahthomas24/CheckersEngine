@@ -25,6 +25,15 @@ public class Board {
         return (fromIndex & 0x88) != 0;
     }
 
+
+    public int getPiece(int square) {
+        if (isOffBoard(square)) {
+            return OFF_BOARD;
+        }
+        return board[square];
+    }
+
+
     public void findSlidingMove(int fromIndex) {
         int piece = board[fromIndex];
         int[] directions;
@@ -125,6 +134,56 @@ public class Board {
     }
 
 
+    public void makeMove(Move move) {
+        int movingPiece = board[move.fromIndex];
+
+        // 1. Check if this move is a Jump (Distance is 30 or 34 in 0x88)
+        int distance = Math.abs(move.fromIndex - move.toIndex);
+        if (distance == 30 || distance == 34) {
+            // Calculate the square we jumped over
+            move.captureIndex = move.fromIndex + ((move.toIndex - move.fromIndex) / 2);
+
+            // Save the captured piece so we can restore it later, then remove it
+            move.capturedPiece = board[move.captureIndex];
+            board[move.captureIndex] = EMPTY;
+        }
+
+        // 2. Move the piece
+        board[move.toIndex] = movingPiece;
+        board[move.fromIndex] = EMPTY;
+
+        // 3. Handle King Promotions
+        // White moves positive (towards row 7). Black moves negative (towards row 0).
+        // >> 4 divides the index by 16 to get the row number.
+        int targetRow = move.toIndex >> 4;
+
+        if (movingPiece == WHITE && targetRow == 7) {
+            board[move.toIndex] = WHITEKing;
+            move.isPromotion = true;
+        } else if (movingPiece == BLACK && targetRow == 0) {
+            board[move.toIndex] = BLACKKing;
+            move.isPromotion = true;
+        }
+    }
+
+    public void unmakeMove(Move move) {
+        int pieceOnTarget = board[move.toIndex];
+
+        // 1. Undo King Promotion if it happened on this turn
+        if (move.isPromotion) {
+            // Demote it back to a standard piece
+            pieceOnTarget = (pieceOnTarget == WHITEKing) ? WHITE : BLACK;
+        }
+
+        // 2. Move the piece back to its starting square
+        board[move.fromIndex] = pieceOnTarget;
+        board[move.toIndex] = EMPTY;
+
+        // 3. Restore the captured piece, if there was one
+        if (move.capturedPiece != EMPTY) {
+            board[move.captureIndex] = move.capturedPiece;
+        }
+    }
 
 
 }
