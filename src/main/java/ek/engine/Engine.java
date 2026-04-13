@@ -7,7 +7,7 @@ public class Engine {
 
     private int maxDepth;
     
-    // Counters for your report data
+    // Counters for evaluating efficiency of program
     public long nodesEvaluated = 0;
     public long alphaBetaCutoffs = 0;
 
@@ -43,13 +43,13 @@ public class Engine {
     private int alphaBeta(Board board, int depth, int alpha, int beta, boolean isMaximizing, int aiPlayer) {
         nodesEvaluated++; // Increment for the report
 
-        // Figure out whose turn it is in this recursive layer
+        // Figure out whose turn it is 
         int opponent = (aiPlayer == Board.BLACK || aiPlayer == Board.BLACKKing) ? Board.WHITE : Board.BLACK;
         int currentPlayer = isMaximizing ? aiPlayer : opponent;
         
         List<Move> currentMoves = board.generateLegalMoves(currentPlayer);
 
-        // Terminal State: In Checkers, if a player has zero legal moves, they lose.
+        // Terminal state, if no moves are available, the player moves
         if (currentMoves.isEmpty()) {
             if (isMaximizing) {
                 return -100000 - depth; // AI loses. We subtract depth to prefer delaying the loss.
@@ -75,13 +75,13 @@ public class Engine {
                 alpha = Math.max(alpha, eval);
 
                 if (beta <= alpha) {
-                    alphaBetaCutoffs++; // Track the cut-off!
+                    alphaBetaCutoffs++;  // Amount of branches cut off is tracked for evaluating function
                     break;
                 }
             }
             return maxEval;
         } 
-        // MIN LAYER (Opponent's turn)
+        // MIN LAYER (human's turn)
         else {
             int minEval = Integer.MAX_VALUE;
             for (Move move : currentMoves) {
@@ -93,7 +93,7 @@ public class Engine {
                 beta = Math.min(beta, eval);
 
                 if (beta <= alpha) {
-                    alphaBetaCutoffs++; // Track the cut-off!
+                    alphaBetaCutoffs++; // Amount of branches cut off is tracked for evaluating function
                     break; 
                 }
             }
@@ -101,17 +101,17 @@ public class Engine {
         }
     }
 
-    // The Static Evaluation Function (Required for your report)
+    // Function for evaluating board
     private int evaluate(Board board, int aiPlayer) {
         int aiScore = 0;
         int opponentScore = 0;
 
-        boolean isAiBlack = (aiPlayer == Board.BLACK || aiPlayer == Board.BlackKing);
+        boolean isAiBlack = (aiPlayer == Board.BLACK || aiPlayer == Board.BLACK);
 
         // Loop through the entire 128-square 0x88 board
         for (int i = 0; i < 128; i++) {
             
-            // 0x88 Magic: Instantly skip the phantom zone squares
+            // Instantly skip the ineligible zone
             if ((i & 0x88) != 0) {
                 continue; 
             }
@@ -120,22 +120,22 @@ public class Engine {
 
             if (piece == Board.EMPTY) continue;
 
-            // 1. Material Evaluation
+            // Material Evaluation
             int pieceValue = 0;
             if (piece == Board.BLACK || piece == Board.WHITE) {
                 pieceValue = 100;
-            } else if (piece == Board.BLACKKing || piece == Board.WHITEKing) {
+            } else if (piece == Board.BLACKKing|| piece == Board.WHITEKing) {
                 pieceValue = 300; // A king is historically worth about 3 men
             }
 
-            // 2. Positional Heuristic (Bonus points)
+        
             // Pieces on the left/right edges cannot be jumped. Give them a small bonus.
             int col = i % 16; 
             if (col == 0 || col == 7) {
                 pieceValue += 10;
             }
 
-            // 3. Assign points to the correct player
+            // Assign points to the correct player
             boolean isBlackPiece = (piece == Board.BLACK || piece == Board.BLACKKing);
             
             if (isBlackPiece == isAiBlack) {
@@ -145,7 +145,7 @@ public class Engine {
             }
         }
 
-        // Positive score means AI is winning, negative means Opponent is winning
+        // Positive score means AI is winning, negative means human is winning
         return aiScore - opponentScore;
     }
 }
