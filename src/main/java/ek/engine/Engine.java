@@ -44,7 +44,7 @@ public class Engine {
         nodesEvaluated++; // Increment for the report
 
         // Figure out whose turn it is in this recursive layer
-        int opponent = (aiPlayer == Board.BLACK || aiPlayer == Board.BlackKing) ? Board.WHITE : Board.BLACK;
+        int opponent = (aiPlayer == Board.BLACK || aiPlayer == Board.BLACKKing) ? Board.WHITE : Board.BLACK;
         int currentPlayer = isMaximizing ? aiPlayer : opponent;
         
         List<Move> currentMoves = board.generateLegalMoves(currentPlayer);
@@ -124,7 +124,7 @@ public class Engine {
             int pieceValue = 0;
             if (piece == Board.BLACK || piece == Board.WHITE) {
                 pieceValue = 100;
-            } else if (piece == Board.BlackKing || piece == Board.WHITEKing) {
+            } else if (piece == Board.BLACKKing || piece == Board.WHITEKing) {
                 pieceValue = 300; // A king is historically worth about 3 men
             }
 
@@ -136,7 +136,7 @@ public class Engine {
             }
 
             // 3. Assign points to the correct player
-            boolean isBlackPiece = (piece == Board.BLACK || piece == Board.BlackKing);
+            boolean isBlackPiece = (piece == Board.BLACK || piece == Board.BLACKKing);
             
             if (isBlackPiece == isAiBlack) {
                 aiScore += pieceValue;
