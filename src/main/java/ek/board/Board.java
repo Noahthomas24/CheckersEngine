@@ -178,11 +178,11 @@ public class Board {
             pieceOnTarget = (pieceOnTarget == WHITEKing) ? WHITE : BLACK;
         }
 
-        // 2. Move the piece back to its starting square
+        // Move the piece back to its starting square
         board[move.fromIndex] = pieceOnTarget;
         board[move.toIndex] = EMPTY;
 
-        // 3. Restore the captured piece, if there was one
+        // Restore the captured piece, if there was one
         if (move.capturedPiece != EMPTY) {
             board[move.captureIndex] = move.capturedPiece;
         }
