@@ -41,7 +41,7 @@ public class Engine {
     }
 
     private int alphaBeta(Board board, int depth, int alpha, int beta, boolean isMaximizing, int aiPlayer) {
-        nodesEvaluated++; // Increment for the report
+        nodesEvaluated++; // Increment for evaluation
 
         // Figure out whose turn it is 
         int opponent = (aiPlayer == Board.BLACK || aiPlayer == Board.BLACKKing) ? Board.WHITE : Board.BLACK;
@@ -58,7 +58,7 @@ public class Engine {
             }
         }
 
-        // Depth limit reached: Evaluate the board statically
+        // Depth limit reached, evaluate the board statically
         if (depth == 0) {
             return evaluate(board, aiPlayer);
         }
@@ -125,7 +125,7 @@ public class Engine {
             if (piece == Board.BLACK || piece == Board.WHITE) {
                 pieceValue = 100;
             } else if (piece == Board.BLACKKing|| piece == Board.WHITEKing) {
-                pieceValue = 300; // A king is historically worth about 3 men
+                pieceValue = 300; // A king is worth about 3 men
             }
 
         

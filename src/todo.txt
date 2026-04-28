@@ -1,0 +1,7 @@
+Implement feature for capturing several pieces at once in jumpingMoves
+
+Implement time limit for min max search
+
+Implement GUI for playing with option for reversing table position
+
+Init board with user input

@@ -8,8 +8,8 @@ public class Board {
     //0x88 Board with 128 slots
     private final int[] board = new int[128];
 
-    //Pieces are represented as Integers
-    // All Black pieces are Odd and White pieces are Even
+    // Pieces are represented as integers
+    // All Black pieces are odd and White pieces are even
     // This can help us determine which piece is what color faster later.
 
     public static final int EMPTY = 0;
@@ -31,160 +31,163 @@ public class Board {
         return board[square];
     }
 
-    public List<Move> findSlidingMove(int fromIndex) {
-        List<Move> moves = new ArrayList<>();
-        int piece = board[fromIndex];
-        int[] directions;
-
-        //Define move direction based off color. White moves positive, black moves negative.
-        if (piece == WHITEKing || piece == BLACKKing) {
-            directions = new int[] {15, 17, -15, -17}; // All 4 diagonals
-        } else if (piece == WHITE) {
-            directions = new int[] {15, 17};           // Only forwards
-        } else { // BLACK
-            directions = new int[] {-15, -17};         // Only backwards
-        }
-
-        for (int offset : directions) {
-            int target = fromIndex + offset;
-
-            // Instant boundary check
-            if (!isOffBoard(target)) {
-                if (board[target] == EMPTY) {
-                    // Create the Move object instead of printing
-                    moves.add(new Move(fromIndex, target, -1, EMPTY, false));
-                }
-            }
-        }
-        return moves;
-    }
-
-    public List<Move> findJumpMoves(int fromIndex) {
-        List<Move> jumps = new ArrayList<>();
-        int piece = board[fromIndex];
-        int[] directions;
-
-        if (piece == WHITEKing || piece == BLACKKing) {
-            directions = new int[] {15, 17, -15, -17};
-        } else if (piece == WHITE || piece == WHITEKing) { // Assuming White moves positive
-            directions = new int[] {15, 17};
-        } else {
-            directions = new int[] {-15, -17};
-        }
-
-        // Determine if the current piece is Black or White
-        boolean isCurrentPieceBlack = (piece % 2 != 0);
-
-        for (int offset : directions) {
-            int captureSquare = fromIndex + offset;
-            int landingSquare = fromIndex + (offset * 2);
-
-            // validate if landing position is on the board
-            if (!isOffBoard(landingSquare)) {
-
-                // validate if target position is empty
-                if (board[landingSquare] == EMPTY) {
-
-                    // validate if intermediate square is enemy
-                    int capturedPiece = board[captureSquare];
-
-                    if (capturedPiece != EMPTY) {
-                        boolean isCapturedPieceBlack = (capturedPiece % 2 != 0);
-
-                        if (isCurrentPieceBlack != isCapturedPieceBlack) {
-                            // Create the Jump Move object instead of printing
-                            jumps.add(new Move(fromIndex, landingSquare, captureSquare, capturedPiece, false));
-                        }
-                    }
-                }
-            }
-        }
-        return jumps;
-    }
-
     public List<Move> generateLegalMoves(int activePlayerColor) {
         List<Move> slidingMoves = new ArrayList<>();
         List<Move> jumpMoves = new ArrayList<>();
 
-        // Iterate through all 128 indices
-        for (int fromIndex = 0; fromIndex < 128; fromIndex++) {
+        // Determine if the current piece is Black or White
+        boolean isActivePlayerBlack = (activePlayerColor % 2 != 0);
 
+        // Iterate through all 128 indices
+        for (int i = 0; i < 128; i++) {
             // Skip invalid squares in 0x88 format
-            if ((fromIndex & 0x88) != 0) {
+            if (isOffBoard(i)) {
                 continue;
             }
 
-            int piece = board[fromIndex];
+            int piece = board[i];
             if (piece == EMPTY) continue;
+
             // Odd % 2 is 1 (Black). Even % 2 is 0 (White).
             boolean isPieceBlack = (piece % 2 != 0);
-            boolean isActivePlayerBlack = (activePlayerColor % 2 != 0);
 
             if (isPieceBlack != isActivePlayerBlack) {
                 continue; // Not the active player's piece
             }
 
-            // Gather the moves into their respective lists
-            jumpMoves.addAll(findJumpMoves(fromIndex));
-            slidingMoves.addAll(findSlidingMove(fromIndex));
+            // Find all possible multi-jump sequences for this piece
+            findJumpSequences(i, i, new Move(i, i), jumpMoves);
         }
 
-        // Mandatory Capture Rule: If any jumps exist, ignore regular moves.
-        if (!jumpMoves.isEmpty()) {
-            return jumpMoves;
+        // Only look for sliding moves if no jumps have been found
+        if (jumpMoves.isEmpty()) {
+            for (int i = 0; i < 128; i++) {
+                // Skip invalid squares in 0x88 format
+                if (isOffBoard(i)) {
+                    continue;
+                }
+
+                int piece = board[i];
+                if (piece == EMPTY) continue;
+
+                boolean isPieceBlack = (piece % 2 != 0);
+                if (isPieceBlack != isActivePlayerBlack) {
+                    continue;
+                }
+
+                slidingMoves.addAll(findSlidingMoves(i));
+            }
         }
 
-        return slidingMoves;
+        // If any jumps exist, ignore regular moves.
+        return !jumpMoves.isEmpty() ? jumpMoves : slidingMoves;
+    }
+
+    private void findJumpSequences(int startIndex, int currentIndex, Move currentMove, List<Move> allSequences) {
+        int piece = board[startIndex];
+        int[] directions = getDirections(piece);
+        boolean foundFurtherJump = false;
+
+        for (int dir : directions) {
+            int captureSq = currentIndex + dir;
+            int landingSq = currentIndex + (dir * 2);
+
+            if (!isOffBoard(landingSq) && board[landingSq] == EMPTY) {
+                int victim = board[captureSq];
+                if (victim != EMPTY && (victim % 2 != piece % 2)) {
+                    
+                    // --- Simulation Step ---
+                    foundFurtherJump = true;
+                    board[landingSq] = piece;
+                    board[currentIndex] = EMPTY;
+                    board[captureSq] = EMPTY;
+
+                    // Create a copy of the move sequence so far
+                    Move nextMove = new Move(startIndex, landingSq);
+                    nextMove.capturedIndexes.addAll(currentMove.capturedIndexes);
+                    nextMove.capturedPieces.addAll(currentMove.capturedPieces);
+                    nextMove.addCapture(captureSq, victim);
+
+                    // Check for King promotion, jumping stops if you promote
+                    boolean promoted = (piece == WHITE && (landingSq >> 4) == 7) || 
+                                       (piece == BLACK && (landingSq >> 4) == 0);
+
+                    if (promoted) {
+                        nextMove.isPromotion = true;
+                        allSequences.add(nextMove);
+                    } else {
+                        // Recurse to find more jumps
+                        findJumpSequences(startIndex, landingSq, nextMove, allSequences);
+                    }
+
+                    // --- Backtrack Step ---
+                    board[captureSq] = victim;
+                    board[currentIndex] = piece;
+                    board[landingSq] = EMPTY;
+                }
+            }
+        }
+
+        // If no more jumps were possible from this square, but we have made at least one capture
+        if (!foundFurtherJump && !currentMove.capturedIndexes.isEmpty()) {
+            allSequences.add(currentMove);
+        }
+    }
+
+    private int[] getDirections(int piece) {
+        if (piece == WHITEKing || piece == BLACKKing) return new int[]{15, 17, -15, -17};
+        return (piece == WHITE) ? new int[]{15, 17} : new int[]{-15, -17};
     }
 
     public void makeMove(Move move) {
-        int movingPiece = board[move.fromIndex];
-
-        // Check if  move is a jumping move (Distance is 30 or 34 in 0x88)
-        int distance = Math.abs(move.fromIndex - move.toIndex);
-        if (distance == 30 || distance == 34) {
-            // Calculate the square we jumped over
-            move.captureIndex = move.fromIndex + ((move.toIndex - move.fromIndex) / 2);
-
-            // Save the captured piece so we can restore it later, then remove it
-            move.capturedPiece = board[move.captureIndex];
-            board[move.captureIndex] = EMPTY;
-        }
-
-        // Move the piece
-        board[move.toIndex] = movingPiece;
+        int piece = board[move.fromIndex];
         board[move.fromIndex] = EMPTY;
-
-        // Handle King Promotions
-        // White moves positive (towards row 7). Black moves negative (towards row 0).
-        // >> 4 divides the index by 16 to get the row number.
-        int targetRow = move.toIndex >> 4;
-
-        if (movingPiece == WHITE && targetRow == 7) {
-            board[move.toIndex] = WHITEKing;
-            move.isPromotion = true;
-        } else if (movingPiece == BLACK && targetRow == 0) {
-            board[move.toIndex] = BLACKKing;
-            move.isPromotion = true;
+        
+        // Remove all captured pieces
+        for (int capIdx : move.capturedIndexes) {
+            board[capIdx] = EMPTY;
         }
+
+        // Handle Promotion
+        if (move.isPromotion) {
+            piece = (piece == WHITE) ? WHITEKing : BLACKKing;
+        }
+        
+        board[move.toIndex] = piece;
     }
 
     public void unmakeMove(Move move) {
-        int pieceOnTarget = board[move.toIndex];
-
-        // Undo King Promotion if it happened on this turn
+        int piece = board[move.toIndex];
+        
+        // Demote if it was a promotion move
         if (move.isPromotion) {
-            // Demote it back to a standard piece
-            pieceOnTarget = (pieceOnTarget == WHITEKing) ? WHITE : BLACK;
+            piece = (piece == WHITEKing) ? WHITE : BLACK;
         }
 
-        // Move the piece back to its starting square
-        board[move.fromIndex] = pieceOnTarget;
+        board[move.fromIndex] = piece;
         board[move.toIndex] = EMPTY;
 
-        // Restore the captured piece, if there was one
-        if (move.capturedPiece != EMPTY) {
-            board[move.captureIndex] = move.capturedPiece;
+        // Restore all captured pieces
+        for (int i = 0; i < move.capturedIndexes.size(); i++) {
+            board[move.capturedIndexes.get(i)] = move.capturedPieces.get(i);
         }
+    }
+
+    
+    private List<Move> findSlidingMoves(int from) {
+        List<Move> moves = new ArrayList<>();
+        int piece = board[from];
+        for (int dir : getDirections(piece)) {
+            int target = from + dir;
+            if (!isOffBoard(target) && board[target] == EMPTY) {
+                Move m = new Move(from, target);
+                // Check for promotion on slide
+                if ((piece == WHITE && (target >> 4) == 7) || (piece == BLACK && (target >> 4) == 0)) {
+                    m.isPromotion = true;
+                }
+                moves.add(m);
+            }
+        }
+        return moves;
     }
 }
