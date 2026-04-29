@@ -5,43 +5,85 @@ import ek.board.*;
 
 public class Engine {
 
-    private int maxDepth;
+    private long timeLimitMillis;
+    private long startTime;
+    private boolean timeUp;
     
     // Counters for evaluating efficiency of program
     public long nodesEvaluated = 0;
     public long alphaBetaCutoffs = 0;
 
-    public Engine(int depth) {
-        this.maxDepth = depth;
+    // Constructor now takes milliseconds instead of depth
+    public Engine(long timeLimitMillis) {
+        this.timeLimitMillis = timeLimitMillis;
     }
 
-    public Move findBestMove(Board board, int aiPlayer) {
-        // Reset counters at the start of each search
+public Move findBestMove(Board board, int aiPlayer) {
+        // Reset timers and counters at the start of each search
+        startTime = System.currentTimeMillis();
+        timeUp = false;
         nodesEvaluated = 0;
         alphaBetaCutoffs = 0;
 
-        int bestScore = Integer.MIN_VALUE;
-        Move bestMove = null;
+        Move bestMoveOverall = null;
+        int currentDepth = 1;
 
         // Fetch all legal moves for the root position
-        List<Move> moves = board.generateLegalMoves(aiPlayer);
+        List<Move> rootMoves = board.generateLegalMoves(aiPlayer);
+        
+        // Safety fallback: if only one move is available, play it instantly
+        if (rootMoves.size() == 1) return rootMoves.get(0);
 
-        for (Move move : moves) {
-            board.makeMove(move);
-            // Call alpha-beta for the opponent's turn (isMaximizing = false)
-            int score = alphaBeta(board, maxDepth - 1, Integer.MIN_VALUE, Integer.MAX_VALUE, false, aiPlayer);
-            board.unmakeMove(move);
+        // --- Iterative Deepening Loop ---
+        while (!timeUp) {
+            int bestScore = Integer.MIN_VALUE;
+            Move bestMoveForThisDepth = null;
 
-            if (score > bestScore) {
-                bestScore = score;
-                bestMove = move;
+            for (Move move : rootMoves) {
+                board.makeMove(move);
+                // Call alpha-beta for the opponent's turn
+                int score = alphaBeta(board, currentDepth - 1, Integer.MIN_VALUE, Integer.MAX_VALUE, false, aiPlayer);
+                board.unmakeMove(move);
+
+                // If time ran out during this search, discard the results
+                if (timeUp) {
+                    break;
+                }
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMoveForThisDepth = move;
+                }
             }
+
+            // Only update our overall best move if the entire depth finished without timing out
+            if (!timeUp && bestMoveForThisDepth != null) {
+                bestMoveOverall = bestMoveForThisDepth;
+            }
+
+            currentDepth++;
+            
+            // Hard cap to prevent infinite loops in trivial endgames
+            if (currentDepth > 100) break; 
         }
-        return bestMove;
+
+        return bestMoveOverall;
     }
 
     private int alphaBeta(Board board, int depth, int alpha, int beta, boolean isMaximizing, int aiPlayer) {
-        nodesEvaluated++; // Increment for evaluation
+        nodesEvaluated++;
+
+        // --- Time Check Optimization ---
+        // Calling System.currentTimeMillis() on EVERY node is slow.
+        // We only check the clock every 1024 nodes to save CPU cycles.
+        if ((nodesEvaluated & 1023) == 0) { 
+            if (System.currentTimeMillis() - startTime >= timeLimitMillis) {
+                timeUp = true;
+            }
+        }
+
+        // If time is up, collapse the search tree instantly by returning 0. findBestMove will ignore this invalid score.
+        if (timeUp) return 0;
 
         // Figure out whose turn it is 
         int opponent = (aiPlayer == Board.BLACK || aiPlayer == Board.BLACKKing) ? Board.WHITE : Board.BLACK;
@@ -49,16 +91,16 @@ public class Engine {
         
         List<Move> currentMoves = board.generateLegalMoves(currentPlayer);
 
-        // Terminal state, if no moves are available, the player moves
+        // Terminal state
         if (currentMoves.isEmpty()) {
             if (isMaximizing) {
-                return -100000 + depth; // AI loses. We subtract depth to prefer delaying the loss.
+                return -100000 + depth; 
             } else {
-                return 100000 - depth;  // AI wins. We add depth to prefer winning faster. //TODO CHECK +-
+                return 100000 - depth;  
             }
         }
 
-        // Depth limit reached, evaluate the board statically
+        // Depth limit reached
         if (depth == 0) {
             return evaluate(board, aiPlayer);
         }
@@ -71,11 +113,13 @@ public class Engine {
                 int eval = alphaBeta(board, depth - 1, alpha, beta, false, aiPlayer);
                 board.unmakeMove(move);
 
+                if (timeUp) return 0; // Abort up the chain
+
                 maxEval = Math.max(maxEval, eval);
                 alpha = Math.max(alpha, eval);
 
                 if (beta <= alpha) {
-                    alphaBetaCutoffs++;  // Amount of branches cut off is tracked for evaluating function
+                    alphaBetaCutoffs++;  
                     break;
                 }
             }
@@ -89,11 +133,13 @@ public class Engine {
                 int eval = alphaBeta(board, depth - 1, alpha, beta, true, aiPlayer);
                 board.unmakeMove(move);
 
+                if (timeUp) return 0; // Abort up the chain
+
                 minEval = Math.min(minEval, eval);
                 beta = Math.min(beta, eval);
 
                 if (beta <= alpha) {
-                    alphaBetaCutoffs++; // Amount of branches cut off is tracked for evaluating function
+                    alphaBetaCutoffs++; 
                     break; 
                 }
             }
@@ -106,7 +152,7 @@ public class Engine {
         int aiScore = 0;
         int opponentScore = 0;
 
-        boolean isAiBlack = (aiPlayer == Board.BLACK || aiPlayer == Board.BLACK);
+        boolean isAiBlack = (aiPlayer == Board.BLACK || aiPlayer == Board.BLACKKing);
 
         // Loop through the entire 128-square 0x88 board
         for (int i = 0; i < 128; i++) {

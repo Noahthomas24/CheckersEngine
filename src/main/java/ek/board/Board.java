@@ -31,109 +31,6 @@ public class Board {
         return board[square];
     }
 
-    public List<Move> generateLegalMoves(int activePlayerColor) {
-        List<Move> slidingMoves = new ArrayList<>();
-        List<Move> jumpMoves = new ArrayList<>();
-
-        // Determine if the current piece is Black or White
-        boolean isActivePlayerBlack = (activePlayerColor % 2 != 0);
-
-        // Iterate through all 128 indices
-        for (int i = 0; i < 128; i++) {
-            // Skip invalid squares in 0x88 format
-            if (isOffBoard(i)) {
-                continue;
-            }
-
-            int piece = board[i];
-            if (piece == EMPTY) continue;
-
-            // Odd % 2 is 1 (Black). Even % 2 is 0 (White).
-            boolean isPieceBlack = (piece % 2 != 0);
-
-            if (isPieceBlack != isActivePlayerBlack) {
-                continue; // Not the active player's piece
-            }
-
-            // Find all possible multi-jump sequences for this piece
-            findJumpSequences(i, i, new Move(i, i), jumpMoves);
-        }
-
-        // Only look for sliding moves if no jumps have been found
-        if (jumpMoves.isEmpty()) {
-            for (int i = 0; i < 128; i++) {
-                // Skip invalid squares in 0x88 format
-                if (isOffBoard(i)) {
-                    continue;
-                }
-
-                int piece = board[i];
-                if (piece == EMPTY) continue;
-
-                boolean isPieceBlack = (piece % 2 != 0);
-                if (isPieceBlack != isActivePlayerBlack) {
-                    continue;
-                }
-
-                slidingMoves.addAll(findSlidingMoves(i));
-            }
-        }
-
-        // If any jumps exist, ignore regular moves.
-        return !jumpMoves.isEmpty() ? jumpMoves : slidingMoves;
-    }
-
-    private void findJumpSequences(int startIndex, int currentIndex, Move currentMove, List<Move> allSequences) {
-        int piece = board[startIndex];
-        int[] directions = getDirections(piece);
-        boolean foundFurtherJump = false;
-
-        for (int dir : directions) {
-            int captureSq = currentIndex + dir;
-            int landingSq = currentIndex + (dir * 2);
-
-            if (!isOffBoard(landingSq) && board[landingSq] == EMPTY) {
-                int victim = board[captureSq];
-                if (victim != EMPTY && (victim % 2 != piece % 2)) {
-                    
-                    // --- Simulation Step ---
-                    foundFurtherJump = true;
-                    board[landingSq] = piece;
-                    board[currentIndex] = EMPTY;
-                    board[captureSq] = EMPTY;
-
-                    // Create a copy of the move sequence so far
-                    Move nextMove = new Move(startIndex, landingSq);
-                    nextMove.capturedIndexes.addAll(currentMove.capturedIndexes);
-                    nextMove.capturedPieces.addAll(currentMove.capturedPieces);
-                    nextMove.addCapture(captureSq, victim);
-
-                    // Check for King promotion, jumping stops if you promote
-                    boolean promoted = (piece == WHITE && (landingSq >> 4) == 7) || 
-                                       (piece == BLACK && (landingSq >> 4) == 0);
-
-                    if (promoted) {
-                        nextMove.isPromotion = true;
-                        allSequences.add(nextMove);
-                    } else {
-                        // Recurse to find more jumps
-                        findJumpSequences(startIndex, landingSq, nextMove, allSequences);
-                    }
-
-                    // --- Backtrack Step ---
-                    board[captureSq] = victim;
-                    board[currentIndex] = piece;
-                    board[landingSq] = EMPTY;
-                }
-            }
-        }
-
-        // If no more jumps were possible from this square, but we have made at least one capture
-        if (!foundFurtherJump && !currentMove.capturedIndexes.isEmpty()) {
-            allSequences.add(currentMove);
-        }
-    }
-
     private int[] getDirections(int piece) {
         if (piece == WHITEKing || piece == BLACKKing) return new int[]{15, 17, -15, -17};
         return (piece == WHITE) ? new int[]{15, 17} : new int[]{-15, -17};
@@ -189,5 +86,108 @@ public class Board {
             }
         }
         return moves;
+    }
+
+    private void findJumpSequences(int startIndex, int currentIndex, Move currentMove, List<Move> allSequences) {
+        int piece = board[currentIndex];
+        int[] directions = getDirections(piece);
+        boolean foundFurtherJump = false;
+
+        for (int dir : directions) {
+            int captureSq = currentIndex + dir;
+            int landingSq = currentIndex + (dir * 2);
+
+            if (!isOffBoard(landingSq) && board[landingSq] == EMPTY) {
+                int victim = board[captureSq];
+                if (victim != EMPTY && (victim % 2 != piece % 2)) {
+                    
+                    // --- Simulation Step ---
+                    foundFurtherJump = true;
+                    board[landingSq] = piece;
+                    board[currentIndex] = EMPTY;
+                    board[captureSq] = EMPTY;
+
+                    // Create a copy of the move sequence so far
+                    Move nextMove = new Move(startIndex, landingSq);
+                    nextMove.capturedIndexes.addAll(currentMove.capturedIndexes);
+                    nextMove.capturedPieces.addAll(currentMove.capturedPieces);
+                    nextMove.addCapture(captureSq, victim);
+
+                    // Check for King promotion, jumping stops if you promote
+                    boolean promoted = (piece == WHITE && (landingSq >> 4) == 7) || 
+                                       (piece == BLACK && (landingSq >> 4) == 0);
+
+                    if (promoted) {
+                        nextMove.isPromotion = true;
+                        allSequences.add(nextMove);
+                    } else {
+                        // Recurse to find more jumps
+                        findJumpSequences(startIndex, landingSq, nextMove, allSequences);
+                    }
+
+                    // --- Backtrack Step ---
+                    board[captureSq] = victim;
+                    board[currentIndex] = piece;
+                    board[landingSq] = EMPTY;
+                }
+            }
+        }
+
+        // If no more jumps were possible from this square, but we have made at least one capture
+        if (!foundFurtherJump && !currentMove.capturedIndexes.isEmpty()) {
+            allSequences.add(currentMove);
+        }
+    }
+
+    public List<Move> generateLegalMoves(int activePlayerColor) {
+        List<Move> slidingMoves = new ArrayList<>();
+        List<Move> jumpMoves = new ArrayList<>();
+
+        // Determine if the current piece is Black or White
+        boolean isActivePlayerBlack = (activePlayerColor % 2 != 0);
+
+        // Iterate through all 128 indices
+        for (int i = 0; i < 128; i++) {
+            // Skip invalid squares in 0x88 format
+            if (isOffBoard(i)) {
+                continue;
+            }
+
+            int piece = board[i];
+            if (piece == EMPTY) continue;
+
+            // Odd % 2 is 1 (Black). Even % 2 is 0 (White).
+            boolean isPieceBlack = (piece % 2 != 0);
+
+            if (isPieceBlack != isActivePlayerBlack) {
+                continue; // Not the active player's piece
+            }
+
+            // Find all possible multi-jump sequences for this piece
+            findJumpSequences(i, i, new Move(i, i), jumpMoves);
+        }
+
+        // Only look for sliding moves if no jumps have been found
+        if (jumpMoves.isEmpty()) {
+            for (int i = 0; i < 128; i++) {
+                // Skip invalid squares in 0x88 format
+                if (isOffBoard(i)) {
+                    continue;
+                }
+
+                int piece = board[i];
+                if (piece == EMPTY) continue;
+
+                boolean isPieceBlack = (piece % 2 != 0);
+                if (isPieceBlack != isActivePlayerBlack) {
+                    continue;
+                }
+
+                slidingMoves.addAll(findSlidingMoves(i));
+            }
+        }
+
+        // If any jumps exist, ignore regular moves.
+        return !jumpMoves.isEmpty() ? jumpMoves : slidingMoves;
     }
 }
