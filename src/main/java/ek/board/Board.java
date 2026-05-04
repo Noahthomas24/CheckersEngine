@@ -66,7 +66,7 @@ public class Board {
 
         if (piece == WHITEKing || piece == BLACKKing) {
             directions = new int[] {15, 17, -15, -17};
-        } else if (piece == WHITE || piece == WHITEKing) { // Assuming White moves positive
+        } else if (piece == WHITE) { // Assuming White moves positive
             directions = new int[] {15, 17};
         } else {
             directions = new int[] {-15, -17};
@@ -187,4 +187,34 @@ public class Board {
             board[move.captureIndex] = move.capturedPiece;
         }
     }
+
+
+    public void initializeStartingPosition() {
+        // Clear the board to make sure no pieces are on the board
+        for (int i = 0; i < 128; i++) {
+            board[i] = EMPTY;
+        }
+
+        // White pieces on rows 0, 1, 2
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 8; col++) {
+                if ((row + col) % 2 != 0) { // Only dark squares
+                    board[(row << 4) + col] = WHITE;
+                }
+            }
+        }
+
+        // Black pieces on rows 5, 6, 7
+        for (int row = 5; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                if ((row + col) % 2 != 0) {
+                    board[(row << 4) + col] = BLACK;
+                }
+            }
+        }
+    }
+
+
+
+
 }
