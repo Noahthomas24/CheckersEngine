@@ -1,6 +1,7 @@
 package ek.GUI;
 
 import ek.board.Board;
+import ek.board.Move;
 
 import javax.swing.*;
 import java.awt.*;
@@ -11,6 +12,8 @@ public class CheckersGUI extends JPanel {
     private final int TILE_SIZE = 80;
     private final int BOARD_DIMENSION = 8;
     private Board gameBoard;
+    private int selectedIndex = -1; // No piece selected
+    private Move move;
 
     public CheckersGUI(Board gameBoard) {
         this.gameBoard = gameBoard;
@@ -95,14 +98,42 @@ public class CheckersGUI extends JPanel {
         int col = mouseX / TILE_SIZE;
         int row = mouseY / TILE_SIZE;
 
+        //Check if we are clicking within the board
+        if (col < 0 || col >= 8 || row < 0 || row >= 8) return;
+
         // Convert to 0x88 index
+
         int clickedIndex = (row << 4) + col;
 
-        System.out.println("Clicked visual square: [" + row + ", " + col + "] | 0x88 Index: " + clickedIndex);
 
-        // TODO: Implement selection logic
+        if (selectedIndex != -1) {
 
-        // Call repaint() to tell Swing to redraw the board after state changes
-        // repaint(); 
+
+            Move move = new Move(selectedIndex, clickedIndex);
+
+            // Logic to validate and execute move in your Board class
+            boolean moveSuccessful = gameBoard.makeMove(move);
+
+            if (moveSuccessful) {
+                selectedIndex = -1; // Deselect after move
+            } else {
+                // If click was on another of the player's own pieces, switch selection
+                int piece = gameBoard.getPiece(clickedIndex);
+                if (piece != Board.EMPTY) {
+                    selectedIndex = clickedIndex;
+                } else {
+                    selectedIndex = -1; // Clicked empty invalid square, deselect
+                }
+            }
+        }
+        // 2. If no piece is selected, select the clicked piece
+        else {
+            int piece = gameBoard.getPiece(clickedIndex);
+            if (piece != Board.EMPTY) {
+                selectedIndex = clickedIndex;
+            }
+        }
+
+        repaint(); // Refresh visuals to show selection/move
     }
 }
