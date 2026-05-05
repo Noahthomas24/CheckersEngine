@@ -20,6 +20,11 @@ public class Move {
         this.isPromotion = isPromotion;
     }
 
+    public Move(int fromIndex, int toIndex){
+        this.fromIndex = fromIndex;
+        this.toIndex = toIndex;
+    }
+
     // Prints out the entire move with details
     @Override
     public String toString() {

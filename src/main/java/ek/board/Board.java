@@ -5,6 +5,7 @@ import java.util.List;
 
 public class Board {
 
+    private Move move;
     //0x88 Board with 128 slots
     private final int[] board = new int[128];
 
@@ -30,6 +31,12 @@ public class Board {
         }
         return board[square];
     }
+
+
+    private boolean isKing(int piece) {
+        return piece == WHITEKing || piece == BLACKKing;
+    }
+
 
     public List<Move> findSlidingMove(int fromIndex) {
         List<Move> moves = new ArrayList<>();
@@ -66,7 +73,7 @@ public class Board {
 
         if (piece == WHITEKing || piece == BLACKKing) {
             directions = new int[] {15, 17, -15, -17};
-        } else if (piece == WHITE || piece == WHITEKing) { // Assuming White moves positive
+        } else if (piece == WHITE) { // Assuming White moves positive
             directions = new int[] {15, 17};
         } else {
             directions = new int[] {-15, -17};
@@ -137,19 +144,54 @@ public class Board {
         return slidingMoves;
     }
 
-    public void makeMove(Move move) {
-        int movingPiece = board[move.fromIndex];
+    public boolean makeMove(Move move) {
 
+        if (move == null) return false;
+
+        // Check to make sure destination is empty
+        if (board[move.toIndex] != EMPTY) {
+            return false;
+        }
+
+        int movingPiece = board[move.fromIndex];
         // Check if  move is a jumping move (Distance is 30 or 34 in 0x88)
         int distance = Math.abs(move.fromIndex - move.toIndex);
-        if (distance == 30 || distance == 34) {
+
+
+        /*if (distance == 30 || distance == 34) {
             // Calculate the square we jumped over
             move.captureIndex = move.fromIndex + ((move.toIndex - move.fromIndex) / 2);
 
             // Save the captured piece so we can restore it later, then remove it
             move.capturedPiece = board[move.captureIndex];
             board[move.captureIndex] = EMPTY;
+        }*/
+
+        // Validation for making valid move
+        boolean isStep = (distance == 15 || distance == 17);
+        boolean isJump = (distance == 30 || distance == 34);
+        if (!isStep && !isJump) {
+            return false;
         }
+
+        //Direction Check (Only for non-kings)
+        if (movingPiece == WHITE && move.toIndex < move.fromIndex && !isKing(movingPiece)) return false;
+        if (movingPiece == BLACK && move.toIndex > move.fromIndex && !isKing(movingPiece)) return false;
+
+
+        if (isJump) {
+            move.captureIndex = move.fromIndex + ((move.toIndex - move.fromIndex) / 2);
+            move.capturedPiece = board[move.captureIndex];
+
+            // Ensure there is actually an ENEMY piece to jump over
+            if (move.capturedPiece == EMPTY || (move.capturedPiece % 2 == movingPiece % 2)) {
+                return false;
+            }
+
+            // Clear the captured piece
+            board[move.captureIndex] = EMPTY;
+        }
+
 
         // Move the piece
         board[move.toIndex] = movingPiece;
@@ -167,6 +209,7 @@ public class Board {
             board[move.toIndex] = BLACKKing;
             move.isPromotion = true;
         }
+        return true;
     }
 
     public void unmakeMove(Move move) {
@@ -187,4 +230,34 @@ public class Board {
             board[move.captureIndex] = move.capturedPiece;
         }
     }
+
+
+    public void initializeStartingPosition() {
+        // Clear the board to make sure no pieces are on the board
+        for (int i = 0; i < 128; i++) {
+            board[i] = EMPTY;
+        }
+
+        // White pieces on rows 0, 1, 2
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 8; col++) {
+                if ((row + col) % 2 != 0) { // Only dark squares
+                    board[(row << 4) + col] = WHITE;
+                }
+            }
+        }
+
+        // Black pieces on rows 5, 6, 7
+        for (int row = 5; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                if ((row + col) % 2 != 0) {
+                    board[(row << 4) + col] = BLACK;
+                }
+            }
+        }
+    }
+
+
+
+
 }
