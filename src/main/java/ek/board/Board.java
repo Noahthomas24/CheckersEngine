@@ -5,6 +5,7 @@ import java.util.List;
 
 public class Board {
 
+    private Move move;
     //0x88 Board with 128 slots
     private final int[] board = new int[128];
 
@@ -190,4 +191,34 @@ public class Board {
         // If any jumps exist, ignore regular moves.
         return !jumpMoves.isEmpty() ? jumpMoves : slidingMoves;
     }
+
+
+    public void initializeStartingPosition() {
+        // Clear the board to make sure no pieces are on the board
+        for (int i = 0; i < 128; i++) {
+            board[i] = EMPTY;
+        }
+
+        // White pieces on rows 0, 1, 2
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 8; col++) {
+                if ((row + col) % 2 != 0) { // Only dark squares
+                    board[(row << 4) + col] = WHITE;
+                }
+            }
+        }
+
+        // Black pieces on rows 5, 6, 7
+        for (int row = 5; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                if ((row + col) % 2 != 0) {
+                    board[(row << 4) + col] = BLACK;
+                }
+            }
+        }
+    }
+
+
+
+
 }
