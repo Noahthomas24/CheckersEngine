@@ -6,6 +6,7 @@ import java.util.List;
 public class Board {
 
     private Move move;
+    private Move lastMove;
     //0x88 Board with 128 slots
     private final int[] board = new int[128];
 
@@ -233,6 +234,7 @@ public class Board {
             board[move.toIndex] = BLACKKing;
             move.isPromotion = true;
         }
+        this.lastMove = move;
         return true;
     }
 
@@ -285,6 +287,11 @@ public class Board {
                 }
             }
         }
+    }
+
+    //returns last move, used in CheckersGUI class to color moved squares
+    public Move getLastMove() {
+        return lastMove;
     }
 
 

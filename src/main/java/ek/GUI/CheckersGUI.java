@@ -1,6 +1,7 @@
 package ek.GUI;
 
 import ek.board.Board;
+import ek.board.Move;
 import ek.engine.Engine;
 import ek.game.Game;
 
@@ -101,6 +102,7 @@ public class CheckersGUI extends JPanel {
         }
 
         private void drawBoard(Graphics2D g2d) {
+            Move lastMove = board.getLastMove();
             for (int boardRow = 0; boardRow < BOARD_DIMENSION; boardRow++) {
                 int screenRow = toScreenRow(boardRow);
                 for (int col = 0; col < BOARD_DIMENSION; col++) {
@@ -109,7 +111,25 @@ public class CheckersGUI extends JPanel {
                     boolean isDarkSquare = (boardRow + col) % 2 != 0;
                     g2d.setColor(isDarkSquare ? new Color(139, 69, 19) : new Color(245, 222, 179));
                     g2d.fillRect(col * TILE_SIZE, screenRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+
+
+                    //Colors the from and to squares yellow, to better highlight which squares have just moved.
+                    int currentIndex = (boardRow << 4) + col;
+                    if (lastMove != null) {
+                        if (currentIndex == lastMove.fromIndex || currentIndex == lastMove.toIndex) {
+
+                            g2d.setColor(new Color(255, 255, 0, 100));
+                            g2d.fillRect(col * TILE_SIZE, screenRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                        }
+                    }
+
+
+
                 }
+
+
+
+
             }
         }
 
