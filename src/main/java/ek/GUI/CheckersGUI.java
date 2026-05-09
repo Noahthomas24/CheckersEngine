@@ -122,14 +122,7 @@ public class CheckersGUI extends JPanel {
                             g2d.fillRect(col * TILE_SIZE, screenRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
                         }
                     }
-
-
-
                 }
-
-
-
-
             }
         }
 
