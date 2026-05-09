@@ -1,36 +1,44 @@
 package ek.board;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Move {
-    
+
     public int fromIndex;      // Position where the piece started
     public int toIndex;        // Position of where the piece landed
-    
-    // Capture Data
-    public int captureIndex;   // Position of where a piece was captured (-1 if no capture)
-    public int capturedPiece;  // The integer of the piece captured (Board.WHITE = 1, EMPTY=0, etc)
-    
-    // Promotion Data
-    public boolean isPromotion; // True if this move turned a regular piece into a King
 
-    public Move(int fromIndex, int toIndex, int captureIndex, int capturedPiece, boolean isPromotion) {
+    // Capture Data 
+    public List<Integer> captureIndices;  // Squares jumped over, in chain order
+    public List<Integer> capturedPieces; // Piece values at each of those squares, in chain order
+
+    // Promotion Data
+    public boolean isPromotion; 
+
+    public Move(int fromIndex, int toIndex, List<Integer> captureIndices, List<Integer> capturedPieces, boolean isPromotion) {
         this.fromIndex = fromIndex;
         this.toIndex = toIndex;
-        this.captureIndex = captureIndex;
-        this.capturedPiece = capturedPiece;
+        this.captureIndices = captureIndices;
+        this.capturedPieces = capturedPieces;
         this.isPromotion = isPromotion;
     }
 
-    public Move(int fromIndex, int toIndex){
+    public Move(int fromIndex, int toIndex) {
         this.fromIndex = fromIndex;
         this.toIndex = toIndex;
+        this.captureIndices = new ArrayList<>();
+        this.capturedPieces = new ArrayList<>();
     }
 
-    // Prints out the entire move with details
+    public int captureCount() {
+        return captureIndices.size();
+    }
+
     @Override
     public String toString() {
         String details = "Move from " + fromIndex + " to " + toIndex;
-        if (captureIndex != -1) {
-            details += " (Captured piece " + capturedPiece + " at " + captureIndex + ")";
+        if (!captureIndices.isEmpty()) {
+            details += " (Captured " + captureCount() + " piece(s) at " + captureIndices + ")";
         }
         if (isPromotion) {
             details += " [PROMOTION]";

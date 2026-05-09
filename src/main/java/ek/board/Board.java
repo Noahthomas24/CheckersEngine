@@ -59,54 +59,72 @@ public class Board {
             if (!isOffBoard(target)) {
                 if (board[target] == EMPTY) {
                     // Create the Move object instead of printing
-                    moves.add(new Move(fromIndex, target, -1, EMPTY, false));
+                    moves.add(new Move(fromIndex, target));
                 }
             }
         }
         return moves;
     }
 
-    public List<Move> findJumpMoves(int fromIndex) {
-        List<Move> jumps = new ArrayList<>();
-        int piece = board[fromIndex];
-        int[] directions;
+    // Called once per piece from generateLegalMoves.
+    // visitedCaptures is empty on the initial call, the recursive helper fills it.
+    private void expandJumpChains(int fromIndex, int piece, List<Integer> visitedCaptures, List<Move> results) {
+        expandJumpChainRecursive(fromIndex, fromIndex, piece, visitedCaptures, new ArrayList<>(), results);
+    }
 
+    private void expandJumpChainRecursive(
+            int originalFrom, int currentSquare, int piece,
+            List<Integer> captureIndices, List<Integer> capturedPieces,
+            List<Move> results) {
+
+        int[] directions;
         if (piece == WHITEKing || piece == BLACKKing) {
             directions = new int[] {15, 17, -15, -17};
-        } else if (piece == WHITE) { // Assuming White moves positive
+        } else if (piece == WHITE) {
             directions = new int[] {15, 17};
-        } else {
+        } else { // BLACK
             directions = new int[] {-15, -17};
         }
 
-        // Determine if the current piece is Black or White
         boolean isCurrentPieceBlack = (piece % 2 != 0);
+        boolean foundJump = false;
 
         for (int offset : directions) {
-            int captureSquare = fromIndex + offset;
-            int landingSquare = fromIndex + (offset * 2);
+            int captureSquare = currentSquare + offset;
+            int landingSquare = currentSquare + (offset * 2);
 
-            // validate if landing position is on the board
-            if (!isOffBoard(landingSquare)) {
+            if (isOffBoard(landingSquare)) continue;
+            if (board[landingSquare] != EMPTY) continue;          // occupied (includes originalFrom)
+            if (captureIndices.contains(captureSquare)) continue; // already captured in this chain
 
-                // validate if target position is empty
-                if (board[landingSquare] == EMPTY) {
+            int capturedPiece = board[captureSquare];
+            if (capturedPiece == EMPTY) continue;
+            boolean isCapturedPieceBlack = (capturedPiece % 2 != 0);
+            if (isCurrentPieceBlack == isCapturedPieceBlack) continue; // same colour, not an enemy
 
-                    // validate if intermediate square is enemy
-                    int capturedPiece = board[captureSquare];
+            foundJump = true;
 
-                    if (capturedPiece != EMPTY) {
-                        boolean isCapturedPieceBlack = (capturedPiece % 2 != 0);
+            List<Integer> newCaptureIndices = new ArrayList<>(captureIndices);
+            newCaptureIndices.add(captureSquare);
+            List<Integer> newCapturedPieces = new ArrayList<>(capturedPieces);
+            newCapturedPieces.add(capturedPiece);
 
-                        if (isCurrentPieceBlack != isCapturedPieceBlack) {
-                            // Create the Jump Move object instead of printing
-                            jumps.add(new Move(fromIndex, landingSquare, captureSquare, capturedPiece, false));
-                        }
-                    }
-                }
+            // Promotion ends the chain, a promoted piece does not continue jumping this turn
+            int targetRow = landingSquare >> 4;
+            boolean promotesHere = (piece == WHITE && targetRow == 7) || (piece == BLACK && targetRow == 0);
+
+            if (promotesHere) {
+                results.add(new Move(originalFrom, landingSquare, newCaptureIndices, newCapturedPieces, true));
+            } else {
+                expandJumpChainRecursive(originalFrom, landingSquare, piece,
+                        newCaptureIndices, newCapturedPieces, results);
             }
         }
-        return jumps;
+
+        // No further jumps from here and we have accumulated at least one capture: record the chain
+        if (!foundJump && !captureIndices.isEmpty()) {
+            results.add(new Move(originalFrom, currentSquare, captureIndices, capturedPieces, false));
+        }
     }
 
     public List<Move> generateLegalMoves(int activePlayerColor) {
@@ -132,12 +150,19 @@ public class Board {
             }
 
             // Gather the moves into their respective lists
-            jumpMoves.addAll(findJumpMoves(fromIndex));
+            expandJumpChains(fromIndex, piece, new ArrayList<>(), jumpMoves);
             slidingMoves.addAll(findSlidingMove(fromIndex));
         }
 
         // Mandatory Capture Rule: If any jumps exist, ignore regular moves.
         if (!jumpMoves.isEmpty()) {
+            // Sort: most captures first; promotions rank above equal-length chains
+            jumpMoves.sort((a, b) -> {
+                int cmp = Integer.compare(b.captureCount(), a.captureCount());
+                if (cmp != 0) return cmp;
+                if (a.isPromotion == b.isPromotion) return 0;
+                return a.isPromotion ? 1 : -1;
+            });
             return jumpMoves;
         }
 
@@ -154,44 +179,43 @@ public class Board {
         }
 
         int movingPiece = board[move.fromIndex];
-        // Check if  move is a jumping move (Distance is 30 or 34 in 0x88)
         int distance = Math.abs(move.fromIndex - move.toIndex);
 
+        // Engine-generated multi-jump chains already carry their capture lists.
+        // GUI-constructed moves have empty lists, classify them by distance instead.
+        boolean isStep        = (distance == 15 || distance == 17) && move.captureCount() == 0;
+        boolean isSingleJump  = (distance == 30 || distance == 34) && move.captureCount() == 0;
+        boolean isEngineJump  = move.captureCount() > 0;
 
-        /*if (distance == 30 || distance == 34) {
-            // Calculate the square we jumped over
-            move.captureIndex = move.fromIndex + ((move.toIndex - move.fromIndex) / 2);
-
-            // Save the captured piece so we can restore it later, then remove it
-            move.capturedPiece = board[move.captureIndex];
-            board[move.captureIndex] = EMPTY;
-        }*/
-
-        // Validation for making valid move
-        boolean isStep = (distance == 15 || distance == 17);
-        boolean isJump = (distance == 30 || distance == 34);
-        if (!isStep && !isJump) {
+        if (!isStep && !isSingleJump && !isEngineJump) {
             return false;
         }
 
-        //Direction Check (Only for non-kings)
-        if (movingPiece == WHITE && move.toIndex < move.fromIndex && !isKing(movingPiece)) return false;
-        if (movingPiece == BLACK && move.toIndex > move.fromIndex && !isKing(movingPiece)) return false;
+        //Direction Check (Only for non-kings on steps and single GUI jumps)
+        if (isStep || isSingleJump) {
+            if (movingPiece == WHITE && move.toIndex < move.fromIndex && !isKing(movingPiece)) return false;
+            if (movingPiece == BLACK && move.toIndex > move.fromIndex && !isKing(movingPiece)) return false;
+        }
 
-
-        if (isJump) {
-            move.captureIndex = move.fromIndex + ((move.toIndex - move.fromIndex) / 2);
-            move.capturedPiece = board[move.captureIndex];
+        if (isSingleJump) {
+            // Compute and record the capture on the fly for GUI-constructed moves
+            int captureIdx = move.fromIndex + ((move.toIndex - move.fromIndex) / 2);
+            int capturedPce = board[captureIdx];
 
             // Ensure there is actually an ENEMY piece to jump over
-            if (move.capturedPiece == EMPTY || (move.capturedPiece % 2 == movingPiece % 2)) {
+            if (capturedPce == EMPTY || (capturedPce % 2 == movingPiece % 2)) {
                 return false;
             }
 
-            // Clear the captured piece
-            board[move.captureIndex] = EMPTY;
+            move.captureIndices.add(captureIdx);
+            move.capturedPieces.add(capturedPce);
+            board[captureIdx] = EMPTY;
+        } else if (isEngineJump) {
+            // Clear every square in the pre-computed chain
+            for (int captureIdx : move.captureIndices) {
+                board[captureIdx] = EMPTY;
+            }
         }
-
 
         // Move the piece
         board[move.toIndex] = movingPiece;
@@ -225,12 +249,18 @@ public class Board {
         board[move.fromIndex] = pieceOnTarget;
         board[move.toIndex] = EMPTY;
 
-        // Restore the captured piece, if there was one
-        if (move.capturedPiece != EMPTY) {
-            board[move.captureIndex] = move.capturedPiece;
+        // Restore all captured pieces (each is on a distinct square, so order doesn't matter)
+        for (int i = 0; i < move.captureCount(); i++) {
+            board[move.captureIndices.get(i)] = move.capturedPieces.get(i);
         }
     }
 
+    // Had to make a copy for the AI so that the board would not accidentally be modified when searching
+    public Board copy() {
+        Board copy = new Board();
+        System.arraycopy(this.board, 0, copy.board, 0, 128);
+        return copy;
+    }
 
     public void initializeStartingPosition() {
         // Clear the board to make sure no pieces are on the board
