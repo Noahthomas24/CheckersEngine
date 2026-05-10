@@ -54,8 +54,15 @@ public class Game {
     public boolean tryHumanMove(int fromIndex, int toIndex) {
         if (currentPlayer != humanColor || gameOver || aiThinking) return false;
 
-        Move move = new Move(fromIndex, toIndex);
-        if (!board.makeMove(move)) return false;
+        Move move = null;
+        for (Move legal : board.generateLegalMoves(humanColor)) {
+            if (legal.fromIndex == fromIndex && legal.toIndex == toIndex) {
+                move = legal;
+                break;
+            }
+        }
+        if (move == null) return false;
+        board.makeMove(move);
 
         // Switch to AI's turn and check whether AI still has legal moves
         currentPlayer = aiColor;
