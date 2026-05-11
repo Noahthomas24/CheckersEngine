@@ -5,7 +5,6 @@ import java.util.List;
 
 public class Board {
 
-    private Move move;
     private Move lastMove;
     //0x88 Board with 128 slots
     private final int[] board = new int[128];
