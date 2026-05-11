@@ -11,7 +11,7 @@ public class Main {
         Board gameBoard = new Board();
         gameBoard.initializeStartingPosition();
 
-        Engine engine = new Engine(10);
+        Engine engine = new Engine();
 
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Checkers Engine (0x88)");

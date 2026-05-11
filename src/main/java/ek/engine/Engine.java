@@ -27,6 +27,8 @@ public class Engine {
         this.maxDepth = depth;
     }
 
+    public Engine(){}
+
     public Move findBestMove(Board board, int aiPlayer) {
         // Reset counters at the start of each search
         nodesEvaluated = 0;
@@ -198,9 +200,9 @@ public class Engine {
         // Terminal state, if no moves are available, the player moves
         if (currentMoves.isEmpty()) {
             if (isMaximizing) {
-                return -100000 + depth; // AI loses. We subtract depth to prefer delaying the loss.
+                return -100000 + depth; // AI loses. We add depth to prefer delaying the loss.
             } else {
-                return 100000 - depth;  // AI wins. We add depth to prefer winning faster. //TODO CHECK +-
+                return 100000 - depth;  // AI wins. We subtract depth to prefer winning faster.
             }
         }
 
