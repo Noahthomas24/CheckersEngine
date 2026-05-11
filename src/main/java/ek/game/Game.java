@@ -4,6 +4,7 @@ import ek.board.Board;
 import ek.board.Move;
 import ek.engine.Engine;
 
+import java.util.List;
 import javax.swing.SwingWorker;
 
 public class Game {
@@ -87,13 +88,18 @@ public class Game {
 
             @Override
             protected void done() {
+                Move aiMove = null;
                 try {
-                    Move aiMove = get();
-                    if (aiMove != null) {
-                        board.makeMove(aiMove);
+                    aiMove = get();
+                } catch (Exception ignored) {}
+
+                // If the engine move is missing or fails, fall back to the first legal move
+                boolean moved = aiMove != null && board.makeMove(aiMove);
+                if (!moved) {
+                    List<Move> legal = board.generateLegalMoves(aiColor);
+                    if (!legal.isEmpty()) {
+                        board.makeMove(legal.get(0));
                     }
-                } catch (Exception e) {
-                    // Search was interrupted or failed; turn passes to human silently
                 }
 
                 aiThinking = false;
