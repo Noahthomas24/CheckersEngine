@@ -44,7 +44,7 @@ public class Engine {
         Move killerMove = null; // best move from the last fully completed depth
 
         for (int depth = 1; depth <= 100; depth++) {
-            System.out.println(depth);
+            System.out.println("Dybde: "+depth);
             try {
                 Move candidate = searchRootAtDepth(board, aiPlayer, depth, killerMove);
                 // Only commit when the full depth finished without a timeout
@@ -60,7 +60,7 @@ public class Engine {
                 break;
             }
         }
-        System.out.println(nodesEvaluated + " " + alphaBetaCutoffs);
+        System.out.println("Noder evalueret: "+ nodesEvaluated + " - cutoffs: " + alphaBetaCutoffs);
 
         return bestMove;
     }
