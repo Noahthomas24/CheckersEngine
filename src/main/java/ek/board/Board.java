@@ -74,28 +74,32 @@ public class Board {
     }
 
     private void expandJumpChainRecursive(
-            int originalFrom, int currentSquare, int piece,
-            List<Integer> captureIndices, List<Integer> capturedPieces,
-            List<Move> results) {
+        int originalFrom, int currentSquare, int piece,
+        List<Integer> captureIndices, List<Integer> capturedPieces,
+        List<Move> results) {
 
-        int[] directions;
-        if (piece == WHITEKing || piece == BLACKKing) {
-            directions = new int[] {15, 17, -15, -17};
-        } else if (piece == WHITE) {
-            directions = new int[] {15, 17};
-        } else { // BLACK
-            directions = new int[] {-15, -17};
-        }
+    int[] directions;
+    if (piece == WHITEKing || piece == BLACKKing) {
+        directions = new int[] {15, 17, -15, -17};
+    } else if (piece == WHITE) {
+        directions = new int[] {15, 17};
+    } else { // BLACK
+        directions = new int[] {-15, -17};
+    }
 
-        boolean isCurrentPieceBlack = (piece % 2 != 0);
-        boolean foundJump = false;
+    boolean isCurrentPieceBlack = (piece % 2 != 0);
+    boolean foundJump = false;
 
+    int savedOriginal = board[originalFrom];
+    board[originalFrom] = EMPTY;
+
+    try {
         for (int offset : directions) {
             int captureSquare = currentSquare + offset;
             int landingSquare = currentSquare + (offset * 2);
 
             if (isOffBoard(landingSquare)) continue;
-            if (board[landingSquare] != EMPTY) continue;          // occupied (includes originalFrom)
+            if (board[landingSquare] != EMPTY) continue;
             if (captureIndices.contains(captureSquare)) continue; // already captured in this chain
 
             int capturedPiece = board[captureSquare];
@@ -121,12 +125,15 @@ public class Board {
                         newCaptureIndices, newCapturedPieces, results);
             }
         }
-
-        // No further jumps from here and we have accumulated at least one capture: record the chain
-        if (!foundJump && !captureIndices.isEmpty()) {
-            results.add(new Move(originalFrom, currentSquare, captureIndices, capturedPieces, false));
-        }
+    } finally {
+        board[originalFrom] = savedOriginal;
     }
+
+    // No further jumps from here and we have accumulated at least one capture: record the chain
+    if (!foundJump && !captureIndices.isEmpty()) {
+        results.add(new Move(originalFrom, currentSquare, captureIndices, capturedPieces, false));
+    }
+}
 
     public List<Move> generateLegalMoves(int activePlayerColor) {
         List<Move> slidingMoves = new ArrayList<>();
@@ -208,8 +215,10 @@ public class Board {
                 return false;
             }
 
-            move.captureIndices.add(captureIdx);
-            move.capturedPieces.add(capturedPce);
+            if (move.captureIndices.isEmpty()) {
+                move.captureIndices.add(captureIdx);
+                move.capturedPieces.add(capturedPce);
+            }
             board[captureIdx] = EMPTY;
         } else if (isEngineJump) {
             // Clear every square in the pre-computed chain
