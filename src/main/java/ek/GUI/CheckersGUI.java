@@ -22,6 +22,11 @@ public class CheckersGUI extends JPanel {
     private int selectedIndex = -1;
     private JTextField timeLimitField;
 
+    // Used for later when we want to flip the board
+    private boolean isFlipped;
+
+
+
     public CheckersGUI(Board board, Engine engine) {
         this.board = board;
 
@@ -36,6 +41,8 @@ public class CheckersGUI extends JPanel {
                 null, options, options[0]);
         this.humanColor = (choice == 1) ? Board.WHITE : Board.BLACK;
 
+        this.isFlipped = (this.humanColor == Board.WHITE);
+
         this.game = new Game(board, engine, humanColor);
 
         setLayout(new BorderLayout());
@@ -48,7 +55,18 @@ public class CheckersGUI extends JPanel {
         controls.add(new JLabel("Thinking time (sec)"));
         timeLimitField = new JTextField("10", 4);
         controls.add(timeLimitField);
+
+
+        // Adds a flip board button.
+        JButton flipButton = new JButton("Flip Board");
+        flipButton.addActionListener(e -> {
+            isFlipped = !isFlipped;
+            boardPanel.repaint(); // Redraw the board in the new orientation
+        });
+        controls.add(flipButton);
+
         add(controls, BorderLayout.SOUTH);
+
 
         // Repaint the board after every AI move so the result and the overlay both update
         game.setOnAiMoveComplete(() -> boardPanel.repaint());
@@ -70,7 +88,7 @@ public class CheckersGUI extends JPanel {
             long seconds = Long.parseLong(timeLimitField.getText().trim());
             if (seconds > 0) return seconds * 1000;
         } catch (NumberFormatException ignored) {}
-        return 10000; // fall back to 10 s on invalid input
+        return 15000; // fall back to 10 s on invalid input
     }
 
 
@@ -92,9 +110,22 @@ public class CheckersGUI extends JPanel {
             Graphics2D g2d = (Graphics2D) g;
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
+
+            int boardPixels = TILE_SIZE * BOARD_DIMENSION;
+
+            //saves camera rotation. Just here to make sure the text doesnt appear upside down.
+            java.awt.geom.AffineTransform oldTransform = g2d.getTransform();
+
+            // Flip board so its easier to see whenever opponent is making moves
+            if(isFlipped){
+                g2d.rotate(Math.PI, boardPixels / 2.0, boardPixels / 2.0);
+            }
+
             drawBoard(g2d);
             drawPieces(g2d);
             drawSelection(g2d);
+
+            g2d.setTransform(oldTransform);
 
             if (game.isAiThinking()) {
                 drawThinkingOverlay(g2d);
@@ -193,6 +224,15 @@ public class CheckersGUI extends JPanel {
 
         private void handleMouseClick(int mouseX, int mouseY) {
             if (game.isAiThinking() || game.isGameOver()) return;
+
+
+            // Reverses the mouse click so it alligns with the pressed square when board is flipped.
+            if (isFlipped) {
+                int boardPixels = TILE_SIZE * BOARD_DIMENSION;
+                mouseX = boardPixels - mouseX - 1;
+                mouseY = boardPixels - mouseY - 1;
+            }
+
 
             int col = mouseX / TILE_SIZE;
             int screenRow = mouseY / TILE_SIZE;
