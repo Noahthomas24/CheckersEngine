@@ -171,15 +171,24 @@ public class Engine {
 
         boolean isAiBlack = (aiPlayer == Board.BLACK || aiPlayer == Board.BLACKKing);
 
+        // Tracking for situational bonuses. Max pieces per side is 12; 24 is a safe cap.
+        int[] aiPositions = new int[24];
+        boolean[] aiIsKing = new boolean[24];
+        int aiPieceCount = 0;
+
+        int[] opponentPositions = new int[24];
+        boolean[] opponentIsKing = new boolean[24];
+        int opponentPieceCount = 0;
+
         // Loop through the entire 128-square 0x88 board
         for (int i = 0; i < 128; i++) {
-            
+
             // Instantly skip the ineligible zone
             if ((i & 0x88) != 0) {
-                continue; 
+                continue;
             }
 
-            int piece = board.getPiece(i); 
+            int piece = board.getPiece(i);
 
             if (piece == Board.EMPTY) continue;
 
@@ -205,13 +214,113 @@ public class Engine {
                 pieceValue += 10;
             }
 
+            // Permanent center bonus — 2x2 zone at rows 3-4, columns 3-4
+            if (row >= 3 && row <= 4 && col >= 3 && col <= 4) {
+                pieceValue += 8;
+            }
+
             // Assign points to the correct player
             boolean isBlackPiece = (piece == Board.BLACK || piece == Board.BLACKKing);
-            
+            boolean isKingPiece = (piece == Board.BLACKKing || piece == Board.WHITEKing);
+
             if (isBlackPiece == isAiBlack) {
                 aiScore += pieceValue;
+                if (aiPieceCount < 24) {
+                    aiPositions[aiPieceCount] = i;
+                    aiIsKing[aiPieceCount] = isKingPiece;
+                    aiPieceCount++;
+                }
             } else {
                 opponentScore += pieceValue;
+                if (opponentPieceCount < 24) {
+                    opponentPositions[opponentPieceCount] = i;
+                    opponentIsKing[opponentPieceCount] = isKingPiece;
+                    opponentPieceCount++;
+                }
+            }
+        }
+
+        // Classify game state by material differential
+        int materialDiff = aiScore - opponentScore;
+
+        // Within the "balanced" band, skip the situational work entirely
+        if (materialDiff > -150 && materialDiff < 150) {
+            return aiScore - opponentScore;
+        }
+
+        // Compute the shared threat-aware distance sum.
+        // For each AI piece, find the minimum Chebyshev distance to any opponent piece
+        // that can still threaten it (kings always threaten; regular pieces only
+        // threaten in their forward direction, which depends on piece color, not role).
+        int totalDistance = 0;
+        for (int a = 0; a < aiPieceCount; a++) {
+            int aiSq = aiPositions[a];
+            int aiRow = aiSq >> 4;
+            int aiCol = aiSq & 7;
+
+            int minDist = Integer.MAX_VALUE;
+            for (int o = 0; o < opponentPieceCount; o++) {
+                int oppSq = opponentPositions[o];
+                int oppRow = oppSq >> 4;
+                int oppCol = oppSq & 7;
+
+                // Determine whether this opponent piece threatens the AI piece.
+                // Direction depends on the opponent piece's COLOR, not on AI/opponent role.
+                boolean threatens;
+                if (opponentIsKing[o]) {
+                    threatens = true;
+                } else {
+                    // Opponent is a regular piece. Figure out its color.
+                    // Opponent color is the opposite of AI color.
+                    boolean isOpponentWhite = isAiBlack; // AI is black => opponent is white
+                    if (isOpponentWhite) {
+                        // White regular pieces move toward higher rows.
+                        // They can reach an AI piece only if the AI piece's row >= white's row.
+                        threatens = (aiRow >= oppRow);
+                    } else {
+                        // Black regular pieces move toward lower rows.
+                        // They can reach an AI piece only if the AI piece's row <= black's row.
+                        threatens = (aiRow <= oppRow);
+                    }
+                }
+
+                if (!threatens) continue;
+
+                int dr = Math.abs(aiRow - oppRow);
+                int dc = Math.abs(aiCol - oppCol);
+                int chebyshev = Math.max(dr, dc);
+                if (chebyshev < minDist) minDist = chebyshev;
+            }
+
+            // No threatening opponent for this AI piece => contributes 0
+            if (minDist != Integer.MAX_VALUE) {
+                totalDistance += minDist;
+            }
+        }
+
+        int totalPieces = aiPieceCount + opponentPieceCount;
+
+        if (materialDiff >= 150) {
+            // Hunting mode: encourage trades and closing distance
+            int leadFactor = Math.min(materialDiff / 100, 5);
+
+            // Trade-down: fewer pieces on the board is better when ahead
+            aiScore += (24 - totalPieces) * leadFactor * 3;
+
+            // Chase: shorter total distance is better. Skip if either side has no pieces.
+            if (aiPieceCount > 0 && opponentPieceCount > 0) {
+                aiScore -= totalDistance * leadFactor * 2;
+            }
+        } else { // materialDiff <= -150
+            // Defensive mode: keep pieces, keep distance
+            int lagFactor = Math.min(-materialDiff / 100, 5);
+
+            // Avoid trades: more pieces on the board is better when behind
+            aiScore += totalPieces * lagFactor * 3;
+
+            // Distance: greater distance is better. Skip if either side has no pieces.
+            if (aiPieceCount > 0 && opponentPieceCount > 0) {
+                aiScore += totalDistance * lagFactor * 2;
             }
         }
 
