@@ -215,9 +215,9 @@ public class Engine {
             }
 
             // Permanent center bonus — 2x2 zone at rows 3-4, columns 3-4
-            if (row >= 3 && row <= 4 && col >= 3 && col <= 4) {
-                pieceValue += 8;
-            }
+            if (row >= 3 && row <= 4 && col >= 2 && col <= 5) {
+            pieceValue += 8;
+}
 
             // Assign points to the correct player
             boolean isBlackPiece = (piece == Board.BLACK || piece == Board.BLACKKing);
