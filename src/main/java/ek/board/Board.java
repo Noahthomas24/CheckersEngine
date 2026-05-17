@@ -227,8 +227,9 @@ public class Board {
         }
 
         // Move the piece
-        board[move.toIndex] = movingPiece;
         board[move.fromIndex] = EMPTY;
+        board[move.toIndex] = movingPiece;
+    
 
         // Handle King Promotions
         // White moves positive (towards row 7). Black moves negative (towards row 0).
