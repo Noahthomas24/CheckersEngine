@@ -18,7 +18,7 @@ public class Game {
     private boolean gameOver;
     private boolean aiThinking;
 
-    private long timeLimitMs = 10000;
+    private long timeLimitMs = 15000;
     private Runnable onAiMoveComplete;
 
     // Black always moves first in checkers, regardless of which side the human is on

@@ -71,17 +71,15 @@ public class CheckersGUI extends JPanel {
         // Repaint the board after every AI move so the result and the overlay both update
         game.setOnAiMoveComplete(() -> boardPanel.repaint());
 
-        // If the human chose White, the AI (Black) moves first immediately
+        // If the player chose White, the AI (Black) moves first immediately
         game.start();
     }
 
     // Converts a board row (0x88 row index) to the screen row it should be drawn on.
-    // When the human plays White, the board is flipped so White's pieces appear at the bottom.
+    // When the player plays White, the board is flipped so White's pieces appear at the bottom.
     // Because 7 - (7 - x) == x, this function is its own inverse and is used for
     // mouse-click conversion (screen row → board row) as well.
-    private int toScreenRow(int boardRow) {
-        return (humanColor == Board.WHITE) ? 7 - boardRow : boardRow;
-    }
+
 
     private long parseTimeLimitMs() {
         try {
@@ -135,13 +133,12 @@ public class CheckersGUI extends JPanel {
         private void drawBoard(Graphics2D g2d) {
             Move lastMove = board.getLastMove();
             for (int boardRow = 0; boardRow < BOARD_DIMENSION; boardRow++) {
-                int screenRow = toScreenRow(boardRow);
                 for (int col = 0; col < BOARD_DIMENSION; col++) {
                     // Square color is determined by the board row so the pattern stays
                     // correct regardless of visual orientation
                     boolean isDarkSquare = (boardRow + col) % 2 != 0;
                     g2d.setColor(isDarkSquare ? new Color(139, 69, 19) : new Color(245, 222, 179));
-                    g2d.fillRect(col * TILE_SIZE, screenRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    g2d.fillRect(col * TILE_SIZE, boardRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
 
 
                     //Colors the from and to squares yellow, to better highlight which squares have just moved.
@@ -150,7 +147,7 @@ public class CheckersGUI extends JPanel {
                         if (currentIndex == lastMove.fromIndex || currentIndex == lastMove.toIndex) {
 
                             g2d.setColor(new Color(255, 255, 0, 100));
-                            g2d.fillRect(col * TILE_SIZE, screenRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                            g2d.fillRect(col * TILE_SIZE, boardRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
                         }
                     }
                 }
@@ -159,14 +156,13 @@ public class CheckersGUI extends JPanel {
 
         private void drawPieces(Graphics2D g2d) {
             for (int boardRow = 0; boardRow < BOARD_DIMENSION; boardRow++) {
-                int screenRow = toScreenRow(boardRow);
                 for (int col = 0; col < BOARD_DIMENSION; col++) {
                     int index = (boardRow << 4) + col;
                     if (board.isOffBoard(index)) continue;
 
                     int piece = board.getPiece(index);
                     if (piece != Board.EMPTY) {
-                        drawSinglePiece(g2d, piece, col * TILE_SIZE, screenRow * TILE_SIZE);
+                        drawSinglePiece(g2d, piece, col * TILE_SIZE, boardRow * TILE_SIZE);
                     }
                 }
             }
@@ -195,14 +191,13 @@ public class CheckersGUI extends JPanel {
 
             int boardRow = selectedIndex >> 4;
             int col = selectedIndex & 0x0F;
-            int screenRow = toScreenRow(boardRow);
 
             // Yellow ring — visible on both the dark brown and light wheat squares
             g2d.setColor(new Color(255, 220, 0, 200));
             g2d.setStroke(new BasicStroke(3));
             int padding = 6;
             int size = TILE_SIZE - padding * 2;
-            g2d.drawOval(col * TILE_SIZE + padding, screenRow * TILE_SIZE + padding, size, size);
+            g2d.drawOval(col * TILE_SIZE + padding, boardRow * TILE_SIZE + padding, size, size);
         }
 
         private void drawThinkingOverlay(Graphics2D g2d) {
@@ -235,12 +230,11 @@ public class CheckersGUI extends JPanel {
 
 
             int col = mouseX / TILE_SIZE;
-            int screenRow = mouseY / TILE_SIZE;
+            int boardRow = mouseY / TILE_SIZE;
 
-            if (col < 0 || col >= 8 || screenRow < 0 || screenRow >= 8) return;
+            if (col < 0 || col >= 8 || boardRow < 0 || boardRow >= 8) return;
 
             // toScreenRow is its own inverse, so applying it to the screen row gives the board row
-            int boardRow = toScreenRow(screenRow);
             int clickedIndex = (boardRow << 4) + col;
 
             if (selectedIndex != -1) {
